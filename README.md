@@ -1,2 +1,2 @@
-visn
+Vis<sub>n</sub>
 ====
