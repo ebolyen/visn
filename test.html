@@ -1,0 +1,84 @@
+<html>
+    <head>
+        <script src="assets/dataHandler.js" ></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.4.8/d3.min.js" ></script>
+        <script>
+            var data = {
+                "_type_": "literal",
+                "_metatree_":[1, 6, 0, 9, 11, 12, 13, 0, 0, 0, 14],
+                "_count_": 16,
+                "_properties_":["name"],
+                "name":["top","a","b","c","d","e","aa","ab","ac","ca","cb","da","ea","aaa","cba","cbb"],
+                "sum":[100,    15, 25, 20, 20, 20,   5,   5,   5,  10,  10,  20,  20,    5,    5,    5]
+            }
+        </script>
+    </head>
+    <body>
+        <div id="chart"></div>
+        <script>
+            var view = ColView(data);
+
+            var width = 100;
+            var height = 500;
+            var svg = d3.select("#chart").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            var color = d3.scale.category20b();
+            var y = d3.scale.linear()
+                                .domain([0, 100])
+                                .range([0, height]);
+
+            function update(data) {
+                var y0s = view.scanl("sum", function(a,b){return a+b}, 0)
+
+                var bar = svg.selectAll("rect")
+                    .data(data, function(d){ return d; });
+
+                bar.attr("fill", function(d){
+                        return color(d);
+                    })
+                    .transition()
+                    .attr("y", function(d, i) {
+                        return y(y0s[i]);
+                    })
+                    .attr("height", function(d) {
+                        return y(view.get("sum", d));
+                    });
+
+                bar.enter().append("rect")
+                    .attr("width", width)
+                    .on('click', view.expand)
+                    .on("contextmenu", function(d) {
+                         view.collapse(d)
+                         //stop showing browser menu
+                         d3.event.preventDefault();
+                    })
+
+                    .attr("y", function(d, i) {
+                        return y(y0s[i]);
+                    })
+                    .attr("fill", function(d){
+                        return color(d);
+                    })
+                    .attr("height", function(d) {
+                        return y(view.get("sum", d));
+                    })
+                    .attr("opacity", function(d){
+                        return 0;
+                    })
+                    .transition()
+                    .attr("opacity", function(d){
+                        return 1;
+                    });
+
+                bar.exit()
+                    .transition()
+                    .remove();
+            }
+
+            view.on('change', update);
+            update(view.data);
+        </script>
+    </body>
+</html>
