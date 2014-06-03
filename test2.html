@@ -1,0 +1,106 @@
+<html>
+    <head>
+        <style>
+            .expandable {
+                cursor: pointer;
+            }
+        </style>
+
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.4.8/d3.min.js" ></script>
+        <script src="assets/visn.js" ></script>
+        <script>
+            var data = {
+                "_type_": "literal",
+                "_metatree_":[1, 6, 0, 9, 11, 12, 13, 0, 0, 0, 14],
+                "_count_": 16,
+                "name":["top","a","b","c","d","e","aa","ab","ac","ca","cb","da","ea","aaa","cba","cbb"],
+                "sum":[ [ 100, 100, 100, 100 ],
+                      [ 15, 25, 30, 15 ],
+                      [ 25, 0, 25, 25 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 20, 25, 5, 20 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 5, 10, 10, 5 ],
+                      [ 5, 7.5, 10, 5 ],
+                      [ 5, 7.5, 10, 5 ],
+                      [ 10, 15, 10, 10 ],
+                      [ 10, 10, 10, 10 ],
+                      [ 20, 25, 5, 20 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 5, 10, 10, 5 ],
+                      [ 5, 5, 5, 5 ],
+                      [ 5, 5, 5, 5 ] ],
+                "x_labels": ["Group 1", "Group 2", "Group 3", "Group 4"]
+
+
+                //[100,    15, 25, 20, 20, 20,   5,   5,   5,  10,  10,  20,  20,    5,    5,    5]
+            }
+
+            function save() {
+                console.log("hello")
+                var link = document.getElementById("save");
+                link.href = "data:application/svg+xml;base64,"+window.btoa(document.getElementById("chart").innerHTML);
+            }
+        </script>
+    </head>
+    <body>
+
+        <div id="chart"></div>
+        <a id="save" href="#" onclick="return save()">Click</a>
+        <script>
+            var ctrl = visn.Controllers.PlanarTree(data);
+            var width = 500;
+            var height = 300;
+            var svg = d3.select("#chart").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            var bars = svg.selectAll("g.bar")
+                        .data(data.x_labels)
+
+            svg.append("g")
+                .attr("class", "yaxis")
+                .attr("transform", "translate(40,0)");
+
+            var controllers = [];
+
+            var maxest = visn.Utils.maxest();
+            var max = maxest.max;
+
+            max.listen(function(max) {
+                var y = d3.scale.linear()
+                                    .domain([0, max])
+                                    .range([height, 0]);
+
+                var yAxis = d3.svg.axis()
+                            .orient("left")
+                            .scale(y);
+
+                svg.select(".yaxis").call(yAxis);
+            })
+
+            bars.enter().append("g")
+                .attr("class", "bar")
+                .attr("transform", function(d, i){
+                    return "translate("+(i*100 + 50)+",0)";
+                })
+                .each(function(d, i){
+                    controllers[i] = visn.Controllers.PlanarTree(data);
+                    controllers[i].index = i;
+                    controllers[i].on("active", function(d){
+                        console.log("active "+i+": "+d)
+                    })
+                    var localMax = maxest.Coordinate(i);
+                    var sb = visn.Components.CollapsibleStackedBar(d3.select(this), controllers[i], localMax, max)
+                    sb.height = height;
+                    sb.width = 100;
+                    sb.paddingTop = 0;
+                    sb.paddingBottom = 0;
+                })
+
+
+
+
+        </script>
+    </body>
+</html>

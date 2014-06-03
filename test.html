@@ -1,5 +1,11 @@
 <html>
     <head>
+        <style>
+            .expandable {
+                cursor: pointer;
+            }
+        </style>
+        <script src="assets/visn.js" ></script>
         <script src="assets/dataHandler.js" ></script>
         <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.4.8/d3.min.js" ></script>
         <script>
@@ -7,78 +13,155 @@
                 "_type_": "literal",
                 "_metatree_":[1, 6, 0, 9, 11, 12, 13, 0, 0, 0, 14],
                 "_count_": 16,
-                "_properties_":["name"],
                 "name":["top","a","b","c","d","e","aa","ab","ac","ca","cb","da","ea","aaa","cba","cbb"],
-                "sum":[100,    15, 25, 20, 20, 20,   5,   5,   5,  10,  10,  20,  20,    5,    5,    5]
+                "sum":[ [ 100, 100, 100, 100 ],
+                      [ 15, 25, 100, 15 ],
+                      [ 25, 0, 25, 25 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 20, 25, 5, 20 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 5, 10, 10, 5 ],
+                      [ 5, 7.5, 10, 5 ],
+                      [ 5, 7.5, 10, 5 ],
+                      [ 10, 15, 10, 10 ],
+                      [ 10, 10, 10, 10 ],
+                      [ 20, 25, 5, 20 ],
+                      [ 20, 25, 20, 20 ],
+                      [ 5, 10, 10, 5 ],
+                      [ 5, 5, 5, 5 ],
+                      [ 5, 5, 5, 5 ] ]
+
+
+                //[100,    15, 25, 20, 20, 20,   5,   5,   5,  10,  10,  20,  20,    5,    5,    5]
             }
         </script>
     </head>
     <body>
         <div id="chart"></div>
         <script>
-            var view = ColView(data);
 
-            var width = 100;
-            var height = 500;
+            var width = 500;
+            var height = 300;
             var svg = d3.select("#chart").append("svg")
                 .attr("width", width)
                 .attr("height", height);
 
+            svg.append("g")
+                .attr("class", "yaxis")
+                .attr("transform", "translate(40,0)");
+
+            var highestYs = [];
+
             var color = d3.scale.category20b();
-            var y = d3.scale.linear()
-                                .domain([0, 100])
-                                .range([0, height]);
 
-            function update(data) {
-                var y0s = view.scanl("sum", function(a,b){return a+b}, 0)
+            function bar(index, xOffset, width, height) {
+                var view = ColView(data);
+                var chart = svg.append("g");
 
-                var bar = svg.selectAll("rect")
-                    .data(data, function(d){ return d; });
+                function update(data) {
+                    var y0s = view.scanl("sum", function(a,b){return a+b}, 0, true)
+                    console.log(y0s)
+                    highestYs[index] = y0s[y0s.length -1];
 
-                bar.attr("fill", function(d){
-                        return color(d);
-                    })
-                    .transition()
-                    .attr("y", function(d, i) {
-                        return y(y0s[i]);
-                    })
-                    .attr("height", function(d) {
-                        return y(view.get("sum", d));
-                    });
+                    var y = d3.scale.linear()
+                                        .domain([0, d3.max(highestYs)])
+                                        .range([height, 0]);
+                    var y2 = d3.scale.linear()
+                                        .domain([0, d3.max(highestYs)])
+                                        .range([0, height]);
 
-                bar.enter().append("rect")
-                    .attr("width", width)
-                    .on('click', view.expand)
-                    .on("contextmenu", function(d) {
-                         view.collapse(d)
-                         //stop showing browser menu
-                         d3.event.preventDefault();
-                    })
+                    var yAxis = d3.svg.axis()
+                                .orient("left")
+                                .scale(y);
 
-                    .attr("y", function(d, i) {
-                        return y(y0s[i]);
-                    })
-                    .attr("fill", function(d){
-                        return color(d);
-                    })
-                    .attr("height", function(d) {
-                        return y(view.get("sum", d));
-                    })
-                    .attr("opacity", function(d){
-                        return 0;
-                    })
-                    .transition()
-                    .attr("opacity", function(d){
-                        return 1;
-                    });
+                    svg.select(".yaxis").call(yAxis);
 
-                bar.exit()
-                    .transition()
-                    .remove();
+                    var bar = chart.selectAll("rect")
+                        .data(data, function(d){ return d; });
+
+
+                    function boxHeight(d) {
+                        return y2(view.get("sum", d, true));
+                    }
+
+                    function boxY(d, i) {
+                        var r = y(y0s[i]) - y2(view.get("sum", d, true));
+                        console.log("["+i+"]: " +r)
+                        return r;
+                    }
+
+                    bar.attr("fill", function(d){
+                            return color(d);
+                        })
+                        .transition().duration(500)
+                        .attr("y", boxY)
+                        .attr("height", boxHeight)
+                        .attr("opacity", function(d){
+                            return 1;
+                        });
+
+                    bar.enter().append("rect")
+                        .attr("width", width)
+                        .attr("x", xOffset)
+                        .on('click', view.zoomIn)
+                        .on("contextmenu", function(d) {
+                             view.zoomOut()
+                             //stop showing browser menu
+                             d3.event.preventDefault();
+                        })
+                        .on("mouseover", function(d){
+                            if(!view.isTip(d))
+                                d3.select(this)
+                                    .classed("expandable", true)
+                                    .attr("stroke", "red")
+                        })
+                        .on("mouseout", function(){
+                            d3.select(this)
+                                .attr("stroke", "")
+                        })
+                        .attr("fill", function(d){
+                            return color(d);
+                        })
+                        .attr("y", height)
+                        //.attr("opacity", 0)
+                        .transition().duration(500)
+                        .attr("opacity", 1)
+
+                        .attr("height", boxHeight)
+                        .attr("y", boxY);
+
+
+                    bar.exit()
+                        .transition().duration(500)
+                        .attr("height", 0)
+                        .attr("y", height)
+                        .attr("opacity", 0)
+                        .remove();
+                }
+                view.setIndex(index);
+                view.on('change', update);
+                update(view.data);
+                return {
+                    "view":view,
+                    "redraw":function() {
+                        update(view.data)
+                    }
+                };
+            }
+            var bars = [bar(0, 50, 50, height),
+            bar(1, 150, 50, height),
+            bar(2, 250, 50, height),
+            bar(3, 350, 50, height)]
+
+            for(var i=0; i<bars.length; i++) {
+                bars[i].view.on("change", function(){
+                    bars.forEach(function(b){
+                        b.redraw();
+                    })
+                })
+                bars[i].redraw()
             }
 
-            view.on('change', update);
-            update(view.data);
         </script>
     </body>
 </html>

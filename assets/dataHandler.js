@@ -12,8 +12,6 @@ var ColView = (function() {
 
     function literal(data, view, listeners, stack) {
 
-
-
         function constructElement(id) {
             /*var elem = {};
             elem._id_ = id;
@@ -153,19 +151,30 @@ var ColView = (function() {
         }
 
         view.zoomIn = function(id) {
-            stack.push(view.getView());
-            view.data = getChildren(id);
+                stack.push(view.getView());
 
-            notify(listeners, "change", view.getView());
+                if(!view.isTip(id))
+                    view.data = getChildren(id);
+                else
+                    view.data = [id]
+                console.log(stack)
+                notify(listeners, "change", view.getView());
+
         }
 
         view.zoomOut = function(id) {
-            view.setView(stack.pop())
+            var n = stack.pop();
+            if(n){
+                view.setView(n)
+                console.log(n)
+                notify(listeners, "change", view.getView());
+            }
 
-            notify(listeners, "change", view.getView());
         }
 
-        view.get = function(property, id) {
+        view.get = function(property, id, index) {
+            if(index)
+                return data[property][id][propertyIndex];
             return data[property][id];
         }
 
@@ -175,17 +184,29 @@ var ColView = (function() {
                 v[i] = view.data[i];
             }
             return v;
+
         }
 
         view.setView = function(idList) {
-            for(var i=0; i<idList.length; i++) {
+            /*for(var i=0; i<idList.length; i++) {
                 view.data[i] = constructElement(idList[i]);
             }
             if(view.data.length > idList.length) {
                 view.data.splice(idList.length, idList.length-view.data.length)
             }
-
+            */
+            view.data = idList;
+            console.log(view.getView())
             notify(listeners, "change", view.getView());
+        }
+
+
+        var propertyIndex = null;
+        view.setIndex = function(index) {
+            propertyIndex = index;
+        }
+        view.getIndex = function() {
+            return propertyIndex;
         }
 
         view.data = getChildren(0)
@@ -235,14 +256,18 @@ var ColView = (function() {
             listeners[event].push(callback);
         }
 
-        view.scanl = function(property, fun, accum) {
+        view.scanl = function(property, fun, accum, useIndex) {
             var scan = new Array();
             scan.push(accum)
             for(var i=0; i<view.data.length; i++) {
-                var t = fun(accum, view.get(property, view.data[i]))
+                var t = fun(accum, view.get(property, view.data[i], useIndex))
                 scan.push(t);
                 accum = t;
             }
+            console.log(view.data.map(function(d){
+                return view.get(property, d, useIndex)
+            }))
+            console.log(scan)
             return scan;
         }
 
